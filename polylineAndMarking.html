@@ -1,0 +1,174 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mappls - Click to build Polyline</title>
+  <style>
+    html,body { height:100%; margin:0; padding:0; }
+    #map { width:1000px; height:800px; margin:20px; background:#f3f3f3; }
+    .controls { position: absolute; left: 28px; top: 10px; z-index: 9999; }
+    .controls button { margin-right:8px; }
+    #status { margin-left:12px; font-family:monospace; }
+  </style>
+
+  <!-- keep the same SDK URL you used (API key embedded) -->
+  <script src="https://apis.mappls.com/advancedmaps/api/7e9ae35043cd4d04737eb5cadc6e6903/map_sdk?v=3.0&layer=vector"></script>
+</head>
+<body>
+  <div class="controls">
+    <button id="undo">Undo</button>
+    <button id="clear">Clear</button>
+    <button id="finish">Finish</button>
+    <span id="status">Ready</span>
+  </div>
+
+  <div id="map"></div>
+
+  <script>
+  (function(){
+    // Basic SDK check
+    if (!window.mappls) {
+      console.error('mappls SDK not loaded. Check the <script> src URL.');
+      document.getElementById('status').textContent = 'SDK not loaded';
+      return;
+    }
+
+    // Create map
+    const map = new mappls.Map('map', {
+      center: { lat: 28.612964, lng: 77.229463 },
+      zoom: 12
+    });
+
+    let polycards = [];   // clicked points
+    let polyline = null;  // polyline reference
+    let markers = [];     // marker references
+
+    function setStatus(txt) {
+      console.log(txt);
+      document.getElementById('status').textContent = txt;
+    }
+
+    function drawPolylineIfNeeded() {
+      // remove existing polyline
+      if (polyline) {
+        try { polyline.remove(); } catch(e){ console.warn(e); }
+        polyline = null;
+      }
+
+      // need at least 2 points to draw a line
+      if (polycards.length < 2) {
+        setStatus(`Points: ${polycards.length} (need 2+)`);
+        return;
+      }
+
+      // Create a new Polyline. Provide both "path" and "paths" (docs inconsistent).
+      polyline = new mappls.Polyline({
+        map: map,
+        path: polycards,
+        paths: polycards,
+        strokeColor: '#FF0000',
+        strokeOpacity: 1.0,
+        strokeWeight: 4,
+        fitbounds: false
+      });
+
+      setStatus(`Points: ${polycards.length} — polyline drawn`);
+
+      // optional: add click listener to polyline if the SDK supports it
+      if (polyline && typeof polyline.addListener === 'function') {
+        polyline.addListener('click', function() {
+          alert('Polyline clicked');
+        });
+      }
+    }
+
+    // Add marker and extend polyline on map click
+    map.on('click', function(e) {
+      try {
+        const lat = e.lngLat.lat;
+        
+        
+        const lng = e.lngLat.lng;
+      console.log(lng);
+      console.log(lat);
+        const point = { lat: lat, lng: lng };
+
+        polycards.push(point);
+
+        const marker = new mappls.Marker({
+          map: map,
+          position: point
+        });
+        markers.push(marker);
+
+        drawPolylineIfNeeded();
+      } catch (err) {
+        console.error('Click handler error', err);
+        setStatus('Error — see console');
+      }
+    });
+
+    // Undo last point
+    document.getElementById('undo').addEventListener('click', function() {
+      if (markers.length) {
+        const m = markers.pop();
+        try { m.remove(); } catch(e){ console.warn(e); }
+        polycards.pop();
+        drawPolylineIfNeeded();
+      }
+    });
+
+    // Clear everything
+    document.getElementById('clear').addEventListener('click', function() {
+      markers.forEach(m => { try{ m.remove(); }catch(e){} });
+      markers = [];
+      polycards = [];
+      if (polyline) { try{ polyline.remove(); }catch(e){} polyline = null; }
+      setStatus('Cleared');
+    });
+
+    // Finish (example: just disables adding more points)
+    document.getElementById('finish').addEventListener('click', function() {
+      setStatus('Finished: ' + polycards.length + ' points (map-clicks ignored)');
+      // to actually ignore further clicks remove the listener:
+      // (but we keep it simple here)
+    });
+
+  })();
+  </script>
+</body>
+</html>
+
